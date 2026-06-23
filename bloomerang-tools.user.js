@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Scriptura Bloomerang Tools
 // @namespace    https://scriptura.org/
-// @version      1.2.0
+// @version      1.3.0
 // @description  Adds help icon popups to Bloomerang field labels
 // @match        https://*.bloomerang.co/*
 // @run-at       document-idle
@@ -43,6 +43,24 @@
   // text, then adjust this list if needed.
   const LABEL_SELECTORS = 'label, .control-label, .field-label, .form-label, dt, th';
 
+  // ----- Layout settings ---------------------------------------------------
+  // The order sections appear in, by their heading text. Any section not
+  // listed keeps its place after the listed ones.
+  const PROFILE_COLUMN_ORDER = [
+    'Donor Relationship',
+    'Biographical Details',
+    'Basic Info',
+    'Personal Information'
+  ];
+  const EDIT_SECTION_ORDER = [
+    'Edit Profile',
+    'Donor Relationship',
+    'Biographical Details',
+    'Communication Preferences'
+  ];
+  // Profile sections that start collapsed. Click the heading to expand.
+  const COLLAPSED_SECTIONS = ['Basic Info', 'Personal Information'];
+
   // =========================================================================
   // STYLES
   // =========================================================================
@@ -75,7 +93,7 @@
     }
     .scriptura-help-popup {
       position: absolute;
-      max-width: 280px;
+      max-width: 320px;
       padding: 10px 12px;
       background: #3c4858;     /* dark slate, close to Bloomerang's heading color */
       color: #fff;
@@ -111,16 +129,40 @@
       margin: 0;
     }
     .scriptura-help-options {
-      margin-top: 8px;
+      margin-top: 9px;
+      padding-top: 9px;
+      border-top: 1px solid rgba(255, 255, 255, 0.18);
     }
     .scriptura-help-opt {
-      margin-top: 5px;
+      margin-top: 7px;
+      padding-left: 12px;
+      text-indent: -12px;   /* bold name flush left, wrapped lines tuck under it */
     }
     .scriptura-help-opt:first-child {
       margin-top: 0;
     }
     .scriptura-help-opt b {
       font-weight: 700;
+      color: #fff;
+    }
+    .scriptura-help-desc {
+      color: #c7cdd4;        /* muted, so the bold option names scan easily */
+    }
+    /* Collapse chevron on a section heading. */
+    .scriptura-chevron {
+      display: inline-block;
+      width: 0;
+      height: 0;
+      margin-left: 8px;
+      border-top: 5px solid transparent;
+      border-bottom: 5px solid transparent;
+      border-left: 6px solid currentColor;
+      vertical-align: middle;
+      opacity: 0.6;
+      transition: transform 0.15s ease;
+    }
+    .scriptura-card-expanded .scriptura-chevron {
+      transform: rotate(90deg);
     }
   `;
   document.head.appendChild(style);
@@ -186,8 +228,11 @@
         row.className = 'scriptura-help-opt';
         const name = document.createElement('b');
         name.textContent = opt.name;
+        const desc = document.createElement('span');
+        desc.className = 'scriptura-help-desc';
+        desc.textContent = ': ' + opt.desc;
         row.appendChild(name);
-        row.appendChild(document.createTextNode(': ' + opt.desc));
+        row.appendChild(desc);
         list.appendChild(row);
       });
       popupBody.appendChild(list);
@@ -472,6 +517,136 @@
   };
 
   // =========================================================================
+  // LAYOUT (reorder sections, collapse low-traffic sections)
+  // These operate on Bloomerang's own rendered page, so they are written to
+  // fail safe: if a section cannot be found, they do nothing.
+  // =========================================================================
+
+  function findHeadingByText(text) {
+    const target = norm(text);
+    const hs = document.querySelectorAll('h1, h2, h3, h4');
+    for (var i = 0; i < hs.length; i++) {
+      if (norm(hs[i].textContent) === target) return hs[i];
+    }
+    return null;
+  }
+
+  function commonAncestor(a, b) {
+    const seen = new Set();
+    let x = a;
+    while (x) { seen.add(x); x = x.parentElement; }
+    let y = b;
+    while (y) { if (seen.has(y)) return y; y = y.parentElement; }
+    return null;
+  }
+
+  function directChildContaining(parent, node) {
+    let el = node;
+    while (el && el.parentElement !== parent) el = el.parentElement;
+    return (el && el.parentElement === parent) ? el : null;
+  }
+
+  function findColumnFor(order) {
+    const headings = order.map(findHeadingByText).filter(Boolean);
+    if (headings.length < 2) return null;
+    return commonAncestor(headings[0], headings[1]);
+  }
+
+  // Move the listed sections to the front of their shared container, in order.
+  // Idempotent: if they are already in place it changes nothing, which keeps
+  // it from reacting to its own DOM moves.
+  function reorderInColumn(column, order) {
+    const cards = order
+      .map(findHeadingByText)
+      .filter(Boolean)
+      .map(function (h) { return directChildContaining(column, h); })
+      .filter(Boolean);
+    if (cards.length < 2) return;
+
+    const kids = Array.prototype.slice.call(column.children);
+    var already = true;
+    for (var i = 0; i < cards.length; i++) {
+      if (kids[i] !== cards[i]) { already = false; break; }
+    }
+    if (already) return;
+
+    for (var j = cards.length - 1; j >= 0; j--) {
+      column.insertBefore(cards[j], column.firstChild);
+    }
+  }
+
+  function reorderSections(order) {
+    const column = findColumnFor(order);
+    if (column) reorderInColumn(column, order);
+  }
+
+  // Work out which elements make up a section's collapsible body. Prefer the
+  // heading's following siblings; if the heading stands alone in a header
+  // block, use that block's following siblings instead.
+  function collapsibleBody(heading) {
+    var sib = heading.nextElementSibling;
+    if (sib) {
+      var els = [];
+      while (sib) { els.push(sib); sib = sib.nextElementSibling; }
+      return { els: els, headerEl: heading };
+    }
+    var parent = heading.parentElement;
+    if (parent) {
+      var s2 = parent.nextElementSibling;
+      var els2 = [];
+      while (s2) { els2.push(s2); s2 = s2.nextElementSibling; }
+      if (els2.length) return { els: els2, headerEl: parent };
+    }
+    return { els: [], headerEl: heading };
+  }
+
+  function initCollapse(column, name) {
+    const heading = findHeadingByText(name);
+    if (!heading) return;
+    const card = directChildContaining(column, heading);
+    if (!card || card.dataset.scripturaCollapsible) return;
+    card.dataset.scripturaCollapsible = '1';
+
+    const body = collapsibleBody(heading);
+    const headerEl = body.headerEl;
+    const bodyEls = body.els;
+
+    headerEl.style.cursor = 'pointer';
+    headerEl.setAttribute('role', 'button');
+    headerEl.setAttribute('tabindex', '0');
+
+    const chevron = document.createElement('span');
+    chevron.className = 'scriptura-chevron';
+    heading.appendChild(chevron);
+
+    var collapsed = true;
+    function render() {
+      bodyEls.forEach(function (c) { c.style.display = collapsed ? 'none' : ''; });
+      card.classList.toggle('scriptura-card-expanded', !collapsed);
+      headerEl.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+    }
+    function toggle() { collapsed = !collapsed; render(); }
+
+    headerEl.addEventListener('click', toggle);
+    headerEl.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); }
+    });
+
+    render();
+  }
+
+  function applyLayout() {
+    if (getPageMode() === 'edit') {
+      reorderSections(EDIT_SECTION_ORDER);
+      return;
+    }
+    const column = findColumnFor(PROFILE_COLUMN_ORDER);
+    if (!column) return;
+    reorderInColumn(column, PROFILE_COLUMN_ORDER);
+    COLLAPSED_SECTIONS.forEach(function (name) { initCollapse(column, name); });
+  }
+
+  // =========================================================================
   // STARTUP: load config, then watch the page for changes
   // =========================================================================
 
@@ -479,11 +654,12 @@
     tooltips = cfg;
     lookup = buildLookup(cfg);
     scan();
+    applyLayout();
 
     let timer = null;
     const observer = new MutationObserver(function () {
       clearTimeout(timer);
-      timer = setTimeout(scan, 300);
+      timer = setTimeout(function () { scan(); applyLayout(); }, 300);
     });
     observer.observe(document.body, { childList: true, subtree: true });
   }
