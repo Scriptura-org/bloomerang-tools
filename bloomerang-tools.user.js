@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Scriptura Bloomerang Tools
 // @namespace    https://scriptura.org/
-// @version      1.1.1
+// @version      1.2.0
 // @description  Adds help icon popups to Bloomerang field labels
 // @match        https://*.bloomerang.co/*
 // @run-at       document-idle
@@ -86,7 +86,6 @@
       z-index: 2147483647;
       display: none;
       pointer-events: none;
-      border-left: 4px solid #3F8F24;
     }
     /* Small arrow joining the popup to its icon. */
     .scriptura-help-caret {
@@ -106,6 +105,22 @@
       border-left: 7px solid transparent;
       border-right: 7px solid transparent;
       border-top: 7px solid #3c4858;
+    }
+    /* The field idea sits on top; the per-option lines sit below it. */
+    .scriptura-help-idea {
+      margin: 0;
+    }
+    .scriptura-help-options {
+      margin-top: 8px;
+    }
+    .scriptura-help-opt {
+      margin-top: 5px;
+    }
+    .scriptura-help-opt:first-child {
+      margin-top: 0;
+    }
+    .scriptura-help-opt b {
+      font-weight: 700;
     }
   `;
   document.head.appendChild(style);
@@ -145,9 +160,45 @@
     hideTimer = setTimeout(hidePopup, 140);
   }
 
+  // Builds the popup contents from a payload object. A payload is either
+  // { plain: "..." } for simple text, or { idea: "...", options: [{name, desc}] }
+  // for the structured field-and-options form.
+  function renderPayload(payload) {
+    while (popupBody.firstChild) popupBody.removeChild(popupBody.firstChild);
+
+    if (payload.plain) {
+      popupBody.appendChild(document.createTextNode(payload.plain));
+      return;
+    }
+
+    if (payload.idea) {
+      const idea = document.createElement('div');
+      idea.className = 'scriptura-help-idea';
+      idea.textContent = payload.idea;
+      popupBody.appendChild(idea);
+    }
+
+    if (payload.options && payload.options.length) {
+      const list = document.createElement('div');
+      list.className = 'scriptura-help-options';
+      payload.options.forEach(function (opt) {
+        const row = document.createElement('div');
+        row.className = 'scriptura-help-opt';
+        const name = document.createElement('b');
+        name.textContent = opt.name;
+        row.appendChild(name);
+        row.appendChild(document.createTextNode(': ' + opt.desc));
+        list.appendChild(row);
+      });
+      popupBody.appendChild(list);
+    }
+  }
+
   function showPopup(icon) {
     clearTimers();
-    popupBody.textContent = icon.dataset.tipText || '';
+    var payload = {};
+    try { payload = JSON.parse(icon.dataset.tipPayload || '{}'); } catch (e) {}
+    renderPayload(payload);
     popup.style.display = 'block';
     activeIcon = icon;
     positionPopup(icon);
@@ -239,14 +290,15 @@
     return svg;
   }
 
-  function makeIcon(text) {
+  function makeIcon(payload) {
     const icon = document.createElement('span');
     icon.className = 'scriptura-help-icon';
     icon.appendChild(buildHelpSvg());
-    icon.dataset.tipText = text;
+    icon.dataset.tipPayload = JSON.stringify(payload);
     icon.setAttribute('role', 'button');
     icon.setAttribute('tabindex', '0');
-    icon.setAttribute('aria-label', 'Help: ' + text);
+    const label = payload.idea || payload.plain || 'Field help';
+    icon.setAttribute('aria-label', 'Help: ' + label);
 
     icon.addEventListener('mouseenter', function () { scheduleShow(icon); });
     icon.addEventListener('mouseleave', scheduleHide);
@@ -291,6 +343,8 @@
   function buildLookup(obj) {
     const map = {};
     Object.keys(obj).forEach(function (k) {
+      // Keys beginning with "_" are notes/headers in the config, not fields.
+      if (k.charAt(0) === '_') return;
       map[norm(k)] = obj[k];
     });
     return map;
@@ -301,13 +355,65 @@
     return /edit/i.test(location.pathname) ? 'edit' : 'view';
   }
 
-  // A config value may be a plain string (used everywhere) or an object with
-  // "view" and "edit" keys. This returns the right string for the current page.
-  function resolveText(value) {
-    if (!value) return '';
-    if (typeof value === 'string') return value;
+  // On the profile, find the value(s) currently set for a field by reading the
+  // field row's text and removing the label, then splitting into entries.
+  function detectSelectedValues(labelNode) {
+    const labelText = labelNode.textContent || '';
+    let row = labelNode.parentElement;
+    let valueText = '';
+    for (var i = 0; i < 2 && row; i++) {
+      var full = row.innerText || row.textContent || '';
+      var stripped = full.replace(labelText, ' ').trim();
+      if (stripped) { valueText = full; break; }
+      row = row.parentElement;
+    }
+    return valueText
+      .split(/[\n,]+/)
+      .map(function (s) { return norm(s); })
+      .filter(Boolean);
+  }
+
+  function optionsToArray(optionsObj) {
+    return Object.keys(optionsObj).map(function (k) {
+      return { name: k, desc: optionsObj[k] };
+    });
+  }
+
+  // Turns a field's config into what the popup should show on this page.
+  // Returns null when there is nothing to show.
+  function resolvePayload(cfg, labelNode) {
+    if (cfg == null) return null;
+
+    // Plain string: same text everywhere.
+    if (typeof cfg === 'string') {
+      return cfg.trim() ? { plain: cfg } : null;
+    }
+
     const mode = getPageMode();
-    return value[mode] || value.default || value.view || value.edit || '';
+
+    // Back-compatible: explicit per-mode strings.
+    if (typeof cfg.view === 'string' || typeof cfg.edit === 'string') {
+      const t = mode === 'edit' ? (cfg.edit || cfg.view) : (cfg.view || cfg.edit);
+      return t ? { plain: t } : null;
+    }
+
+    // Structured: a field idea plus a set of options.
+    const idea = cfg.idea || '';
+    const allOptions = optionsToArray(cfg.options || {});
+    let options;
+    if (mode === 'edit') {
+      // Editing: explain every option so staff can choose.
+      options = allOptions;
+    } else {
+      // Viewing: explain only the value(s) actually set on this record.
+      const selected = detectSelectedValues(labelNode);
+      options = allOptions.filter(function (o) {
+        return selected.indexOf(norm(o.name)) !== -1;
+      });
+    }
+
+    if (!idea && options.length === 0) return null;
+    return { idea: idea, options: options };
   }
 
   function scan() {
@@ -315,11 +421,12 @@
     const nodes = document.querySelectorAll(LABEL_SELECTORS);
     nodes.forEach(function (node) {
       if (node.dataset.scripturaTip) return;
-      const text = resolveText(lookup[norm(node.textContent)]);
-      if (text) {
-        node.dataset.scripturaTip = '1';
-        node.appendChild(makeIcon(text));
-      }
+      const cfg = lookup[norm(node.textContent)];
+      if (!cfg) return;
+      const payload = resolvePayload(cfg, node);
+      if (!payload) return;
+      node.dataset.scripturaTip = '1';
+      node.appendChild(makeIcon(payload));
     });
   }
 
@@ -343,6 +450,26 @@
 
   // Forces an immediate re-scan (useful after editing tooltips in console).
   window.scripturaRescan = scan;
+
+  // On a profile page, reports each select field: the value(s) detected and
+  // whether they matched an option in the config. Anything under "NOT matched"
+  // means the config label and the Bloomerang label differ and need aligning.
+  window.scripturaCheck = function () {
+    if (!tooltips) { console.log('[Scriptura] tooltips not loaded yet'); return; }
+    console.log('[Scriptura] page mode:', getPageMode());
+    document.querySelectorAll(LABEL_SELECTORS).forEach(function (node) {
+      const cfg = lookup[norm(node.textContent)];
+      if (!cfg || typeof cfg !== 'object' || !cfg.options) return;
+      const selected = detectSelectedValues(node);
+      const keys = Object.keys(cfg.options).map(norm);
+      const matched = selected.filter(function (s) { return keys.indexOf(s) !== -1; });
+      const missed = selected.filter(function (s) { return keys.indexOf(s) === -1; });
+      console.log('Field:', (node.textContent || '').trim());
+      console.log('  detected:', selected);
+      console.log('  matched :', matched);
+      if (missed.length) console.log('  NOT matched:', missed);
+    });
+  };
 
   // =========================================================================
   // STARTUP: load config, then watch the page for changes

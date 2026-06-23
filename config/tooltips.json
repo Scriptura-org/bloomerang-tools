@@ -1,10 +1,68 @@
 {
-  "Relationship Stage": "Shows where this person is in the donor journey. Identify and Qualify are early stages. Cultivate, Solicit, and Steward are active stages. Paused means there is no current activity with this person.",
-  "Outreach Approach": "Tells staff how to contact this person right now. This is a work instruction, not the same as Relationship Stage. Use Future Revisit when you plan to contact them later at a set time. Use On Hold when contact is paused with no set date.",
-  "Affinity Interests": "The topics this person cares about. Use this to decide what content and stories to send them.",
-  "Contribution Type": {
-    "view": "How this person takes part. For example: money, time, talent, or prayer.",
-    "edit": "Choose every way this person takes part. You can pick more than one. Prayer here means the person prays for the ministry. To mark someone whose main role is prayer, use Constituency Role and choose Prayer Warrior."
+  "_schema": "Each field key matches the on-screen label. Freeform fields use just \"idea\". Select fields use \"idea\" plus an \"options\" list, where each option key must exactly match the Bloomerang value label. On the edit screen all options are shown; on the profile only the chosen value(s) are shown. To update options over time, edit the options list for that field. Keys starting with _ are ignored.",
+
+  "Outreach Approach": {
+    "idea": "How staff should contact this person right now. This is a work instruction, not the pipeline stage.",
+    "options": {
+      "Personal Stewardship": "An assigned manager keeps a personal relationship through regular, individual contact.",
+      "Revisit Later": "Pause individual outreach for now, but plan to reconnect at a set later time.",
+      "Mass Communication Only": "Include in general emails and mailings, but do not reach out one to one."
+    }
   },
-  "Constituency Role": "Who this person is in the ministry. For example: Lay Supporter, Prayer Warrior, or Business Leader / Strategist. This describes their identity, not what they give."
+
+  "Relationship Stage": {
+    "idea": "Where this person is in the donor journey. This is the pipeline status, not a contact instruction.",
+    "options": {
+      "Identify": "A possible supporter who is not yet confirmed as a good fit.",
+      "Qualify": "Checking whether this person is a real prospect worth pursuing.",
+      "Cultivate": "Building the relationship and growing their interest over time.",
+      "Solicit": "Making a specific ask for a gift or commitment.",
+      "Steward": "Thanking and caring for the person after they have given.",
+      "Paused": "No active work on this relationship right now."
+    }
+  },
+
+  "Contribution Type": {
+    "idea": "The ways this person takes part in the ministry. You can choose more than one.",
+    "options": {
+      "Treasure": "Gives money or other financial gifts.",
+      "Talent": "Offers a skill, such as writing, design, or professional advice.",
+      "Time": "Gives their time, for example by volunteering or helping at events.",
+      "Prayer": "Prays for the ministry. This is about praying, not about their main role.",
+      "Connector": "Introduces Scriptura to other people who may want to take part."
+    }
+  },
+
+  "Affinity Interests": {
+    "idea": "The topics this person cares about. Use this to decide what content and stories to send them. You can choose more than one.",
+    "options": {
+      "Bible Translation": "Interested in the work of translating the Bible into new languages.",
+      "Biblical Scholarship": "Interested in deeper study of the Bible and its background.",
+      "Education": "Interested in teaching, training, and learning programs.",
+      "Global Mission": "Interested in mission work around the world.",
+      "Local Church Ministry": "Interested in the work and life of local churches.",
+      "Poetry / Art / Song": "Interested in creative work such as poetry, art, and music."
+    }
+  },
+
+  "Constituency Role": {
+    "idea": "Who this person is in the ministry. This describes their identity, not what they give. You can choose more than one.",
+    "options": {
+      "Academic / Researcher": "Works in study or research, often at a school or university.",
+      "Bible Translation Practitioner": "Does Bible translation work directly.",
+      "Board Member": "Serves on a governing board for Scriptura or a partner.",
+      "Business Leader / Strategist": "Leads a business or gives strategic and planning help.",
+      "Church or Bible Study Leader": "Leads a church, small group, or Bible study.",
+      "Lay Supporter": "Supports the ministry as a church member, not in a formal role.",
+      "Missionary (non-BT)": "Serves as a missionary in work other than Bible translation.",
+      "Partner Organization": "Represents another organization that works with Scriptura.",
+      "Pastor": "Serves as a pastor of a church.",
+      "Student": "Is currently studying, for example at a school, college, or seminary.",
+      "Volunteer / Service": "Helps through hands-on volunteering or service."
+    }
+  },
+
+  "Background & Family": {
+    "idea": "Notes on this person's background, family connections, and anything that helps staff understand and relate to them."
+  }
 }
