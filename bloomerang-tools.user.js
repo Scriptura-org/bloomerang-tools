@@ -86,6 +86,7 @@
       z-index: 2147483647;
       display: none;
       pointer-events: none;
+      border-left: 4px solid #3F8F24;
     }
     /* Small arrow joining the popup to its icon. */
     .scriptura-help-caret {
