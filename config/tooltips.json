@@ -1,0 +1,10 @@
+{
+  "Relationship Stage": "Shows where this person is in the donor journey. Identify and Qualify are early stages. Cultivate, Solicit, and Steward are active stages. Paused means there is no current activity with this person.",
+  "Outreach Approach": "Tells staff how to contact this person right now. This is a work instruction, not the same as Relationship Stage. Use Future Revisit when you plan to contact them later at a set time. Use On Hold when contact is paused with no set date.",
+  "Affinity Interests": "The topics this person cares about. Use this to decide what content and stories to send them.",
+  "Contribution Type": {
+    "view": "How this person takes part. For example: money, time, talent, or prayer.",
+    "edit": "Choose every way this person takes part. You can pick more than one. Prayer here means the person prays for the ministry. To mark someone whose main role is prayer, use Constituency Role and choose Prayer Warrior."
+  },
+  "Constituency Role": "Who this person is in the ministry. For example: Lay Supporter, Prayer Warrior, or Business Leader / Strategist. This describes their identity, not what they give."
+}
