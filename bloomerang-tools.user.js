@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Scriptura Bloomerang Tools
 // @namespace    https://scriptura.org/
-// @version      1.1.0
+// @version      1.1.1
 // @description  Adds help icon popups to Bloomerang field labels
 // @match        https://*.bloomerang.co/*
 // @run-at       document-idle
