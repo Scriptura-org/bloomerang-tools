@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Scriptura Bloomerang Tools
 // @namespace    https://scriptura.org/
-// @version      1.3.0
+// @version      1.3.1
 // @description  Adds help icon popups to Bloomerang field labels
 // @match        https://*.bloomerang.co/*
 // @run-at       document-idle
@@ -496,6 +496,24 @@
   // Forces an immediate re-scan (useful after editing tooltips in console).
   window.scripturaRescan = scan;
 
+  // Reports what the layout engine can find on this page. Run in the console
+  // if sections are not moving or collapsing as expected.
+  window.scripturaLayoutCheck = function () {
+    console.log('[Scriptura] page mode:', getPageMode());
+    var names = PROFILE_COLUMN_ORDER.concat(EDIT_SECTION_ORDER).concat(COLLAPSED_SECTIONS);
+    var seen = {};
+    names.forEach(function (n) {
+      if (seen[n]) return;
+      seen[n] = 1;
+      var h = findHeadingByText(n);
+      console.log('  ' + n + ': ' + (h ? ('found <' + h.tagName.toLowerCase() + '>') : 'NOT FOUND'));
+    });
+    var col = findColumnFor(PROFILE_COLUMN_ORDER);
+    console.log('  profile column: ' + (col
+      ? ('<' + col.tagName.toLowerCase() + '> with ' + col.children.length + ' direct children')
+      : 'NOT RESOLVED'));
+  };
+
   // On a profile page, reports each select field: the value(s) detected and
   // whether they matched an option in the config. Anything under "NOT matched"
   // means the config label and the Bloomerang label differ and need aligning.
@@ -522,13 +540,24 @@
   // fail safe: if a section cannot be found, they do nothing.
   // =========================================================================
 
+  // Find a section heading by its text, whatever element it happens to be.
+  // Picks the smallest matching element (fewest child elements) so we land on
+  // the heading itself, not a wrapper that also contains the section body.
   function findHeadingByText(text) {
     const target = norm(text);
-    const hs = document.querySelectorAll('h1, h2, h3, h4');
-    for (var i = 0; i < hs.length; i++) {
-      if (norm(hs[i].textContent) === target) return hs[i];
+    const nodes = document.querySelectorAll('h1,h2,h3,h4,h5,h6,div,span,p,a,strong,b');
+    var best = null;
+    var bestKids = Infinity;
+    for (var i = 0; i < nodes.length; i++) {
+      var el = nodes[i];
+      var raw = el.textContent;
+      if (!raw || raw.length > 60) continue;        // skip big containers fast
+      if (norm(raw) === target && el.childElementCount < bestKids) {
+        best = el;
+        bestKids = el.childElementCount;
+      }
     }
-    return null;
+    return best;
   }
 
   function commonAncestor(a, b) {
@@ -583,23 +612,6 @@
   // Work out which elements make up a section's collapsible body. Prefer the
   // heading's following siblings; if the heading stands alone in a header
   // block, use that block's following siblings instead.
-  function collapsibleBody(heading) {
-    var sib = heading.nextElementSibling;
-    if (sib) {
-      var els = [];
-      while (sib) { els.push(sib); sib = sib.nextElementSibling; }
-      return { els: els, headerEl: heading };
-    }
-    var parent = heading.parentElement;
-    if (parent) {
-      var s2 = parent.nextElementSibling;
-      var els2 = [];
-      while (s2) { els2.push(s2); s2 = s2.nextElementSibling; }
-      if (els2.length) return { els: els2, headerEl: parent };
-    }
-    return { els: [], headerEl: heading };
-  }
-
   function initCollapse(column, name) {
     const heading = findHeadingByText(name);
     if (!heading) return;
@@ -607,13 +619,16 @@
     if (!card || card.dataset.scripturaCollapsible) return;
     card.dataset.scripturaCollapsible = '1';
 
-    const body = collapsibleBody(heading);
-    const headerEl = body.headerEl;
-    const bodyEls = body.els;
+    // The header block is the card's direct child that holds the heading.
+    // Everything else directly inside the card is the body that collapses.
+    // Bounding to the card means we never hide a neighboring section.
+    const headerBlock = directChildContaining(card, heading) || heading;
+    const bodyEls = Array.prototype.slice.call(card.children)
+      .filter(function (c) { return c !== headerBlock; });
 
-    headerEl.style.cursor = 'pointer';
-    headerEl.setAttribute('role', 'button');
-    headerEl.setAttribute('tabindex', '0');
+    headerBlock.style.cursor = 'pointer';
+    headerBlock.setAttribute('role', 'button');
+    headerBlock.setAttribute('tabindex', '0');
 
     const chevron = document.createElement('span');
     chevron.className = 'scriptura-chevron';
@@ -623,12 +638,12 @@
     function render() {
       bodyEls.forEach(function (c) { c.style.display = collapsed ? 'none' : ''; });
       card.classList.toggle('scriptura-card-expanded', !collapsed);
-      headerEl.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+      headerBlock.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
     }
     function toggle() { collapsed = !collapsed; render(); }
 
-    headerEl.addEventListener('click', toggle);
-    headerEl.addEventListener('keydown', function (e) {
+    headerBlock.addEventListener('click', toggle);
+    headerBlock.addEventListener('keydown', function (e) {
       if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); }
     });
 
