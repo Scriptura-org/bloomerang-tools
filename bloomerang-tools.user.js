@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Scriptura Bloomerang Tools
 // @namespace    https://scriptura.org/
-// @version      1.4.2
-// @description  Adds help icon popups to Bloomerang field labels
+// @version      1.5.0
+// @description  Adds help icon popups to Bloomerang field labels, with field options and a link to the full Donor Relationship Guide
 // @match        https://*.bloomerang.co/*
 // @run-at       document-idle
 // @grant        none
@@ -22,20 +22,73 @@
   const RAW_CONFIG_URL =
     'https://raw.githubusercontent.com/Scriptura-org/bloomerang-tools/main/config/tooltips.json';
 
+  // Link shown at the bottom of every popup, pointing to the full guide.
+  const GUIDE_URL =
+    'https://docs.google.com/document/d/1NObt4ISChvwL8qRL4dNH-1gjypNu7Kq18N53Y4v1y1A/edit?usp=sharing';
+
   // Built-in help text used when the remote file cannot be loaded.
   // The keys must match the field label text exactly as it appears on screen
   // (capital letters and spacing do not matter, a trailing colon is ignored).
+  // A payload is either { plain: "..." } for simple text, or
+  // { idea: "...", options: [{name, desc}] } for the field-and-options form.
   const FALLBACK_TOOLTIPS = {
-    'Relationship Stage':
-      'Shows where this person is in the donor journey. Identify and Qualify are early stages. Cultivate, Solicit, and Steward are active stages. Paused means there is no current activity with this person.',
-    'Outreach Approach':
-      'Tells staff how to contact this person right now. This is a work instruction, not the same as Relationship Stage. Use Future Revisit when you plan to contact them later at a set time. Use On Hold when contact is paused with no set date.',
-    'Affinity Interests':
-      'The topics this person cares about. Use this to decide what content and stories to send them.',
-    'Contribution Type':
-      'How this person takes part. For example: money, time, talent, or prayer. Choosing Prayer here means the person prays for the ministry. To mark someone whose main role is prayer, use Constituency Role and choose Prayer Warrior.',
-    'Constituency Role':
-      'Who this person is in the ministry. For example: Lay Supporter, Prayer Warrior, or Business Leader / Strategist. This describes their identity, not what they give.'
+    'Outreach Approach': {
+      idea: 'What kind of attention this person should receive right now. This is a work instruction. It can change on its own, apart from Relationship Stage.',
+      options: [
+        { name: 'Personal Stewardship', desc: 'A staff member is actively spending personal time on this relationship.' },
+        { name: 'Revisit Later', desc: 'Personal outreach is paused on purpose until a set moment to re-engage.' },
+        { name: 'Mass Communication Only', desc: 'Stays on newsletters and mailings, but no personal staff time right now.' },
+        { name: 'On Hold (no outreach)', desc: 'Rare. Outreach paused at the person\u2019s request or for lack of engagement.' }
+      ]
+    },
+    'Relationship Stage': {
+      idea: 'Where this relationship stands in the donor journey. In practice stages overlap; pick where your focus mostly sits.',
+      options: [
+        { name: 'Identify', desc: 'We do not yet know enough to choose their path. Gather background.' },
+        { name: 'Qualify', desc: 'Learning whether they warrant personal stewardship and what fits.' },
+        { name: 'Cultivate', desc: 'A real relationship or clear interest. Deepening it over time.' },
+        { name: 'Solicit', desc: 'Enough alignment to invite a concrete next step.' },
+        { name: 'Steward', desc: 'Responded positively. Needs thanks, updates, and care.' },
+        { name: 'Paused', desc: 'Active pursuit stopped. Responsible prioritization, not failure.' }
+      ]
+    },
+    'Contribution Type': {
+      idea: 'How this person might take part. Not every relationship is financial. Select all that fit.',
+      options: [
+        { name: 'Treasure', desc: 'Financial giving.' },
+        { name: 'Time', desc: 'Volunteering, events, hosting, practical service.' },
+        { name: 'Talent', desc: 'Skills, expertise, platform, art, writing, music, teaching.' },
+        { name: 'Prayer', desc: 'Prayer support and intercessory partnership.' },
+        { name: 'Connector', desc: 'Opens doors and refers others to Scriptura.' }
+      ]
+    },
+    'Affinity Interests': {
+      idea: 'What this person cares about. Use it to decide what content and stories to send. Select all that apply.',
+      options: [
+        { name: 'Bible Translation', desc: 'The translation process, field work, translation organizations.' },
+        { name: 'Biblical Scholarship', desc: 'Academic Bible study, textual analysis, scholarly research.' },
+        { name: 'Education', desc: 'Christian education, Sunday school, discipleship, training.' },
+        { name: 'Global Mission', desc: 'Missions, international ministry, reaching unreached peoples.' },
+        { name: 'Local Church Ministry', desc: 'The local church, church health, congregational ministry.' },
+        { name: 'Poetry / Art / Song', desc: 'Worship, liturgy, music, ethnomusicology, visual arts, or song.' }
+      ]
+    },
+    'Constituency Role': {
+      idea: 'What kind of person they are \u2014 how they think and want to be spoken to. This is about disposition, not job title. Record the posture, not the r\u00e9sum\u00e9. Select all that fit.',
+      options: [
+        { name: 'Academic / Research', desc: 'Has a scholarly bent.' },
+        { name: 'Bible Translation Practitioner', desc: 'Hands-on experience in Bible translation, in any role.' },
+        { name: 'Board Member', desc: 'On the board, or thinks from a board member\u2019s perspective.' },
+        { name: 'Business Leader / Strategist', desc: 'Likes numbers, multiplying impact, how organizations work.' },
+        { name: 'Church or Bible Study Leader', desc: 'Responsible for a group\u2019s spiritual growth.' },
+        { name: 'Lay Supporter', desc: 'Faithful Scripture-loving supporter. Often the largest group.' },
+        { name: 'Missionary (non-BT)', desc: 'Serves in missions or ministry outside Bible translation.' },
+        { name: 'Partner Organization', desc: 'Another organization that works alongside Scriptura.' },
+        { name: 'Pastor', desc: 'Thinks and speaks pastorally; oriented toward shepherding.' },
+        { name: 'Student', desc: 'Currently studying \u2014 seminary, university, or other training.' },
+        { name: 'Volunteer / Service', desc: 'Serves or volunteers by nature. What they give Scriptura goes in Contribution Type.' }
+      ]
+    }
   };
 
   // Elements that are likely to hold a field label. If icons do not appear,
@@ -104,6 +157,8 @@
     .scriptura-help-popup {
       position: absolute;
       max-width: 320px;
+      max-height: 70vh;
+      overflow-y: auto;
       padding: 10px 12px;
       background: #3c4858;     /* dark slate, close to Bloomerang's heading color */
       color: #fff;
@@ -113,7 +168,7 @@
       line-height: 1.45;
       z-index: 2147483647;
       display: none;
-      pointer-events: none;
+      pointer-events: auto;   /* allow clicking the guide link in the footer */
     }
     /* Small arrow joining the popup to its icon. */
     .scriptura-help-caret {
@@ -158,6 +213,20 @@
     .scriptura-help-desc {
       color: #c7cdd4;        /* muted, so the bold option names scan easily */
     }
+    /* "Full guide" link at the bottom of every popup. */
+    .scriptura-help-footer {
+      margin-top: 9px;
+      padding-top: 9px;
+      border-top: 1px solid rgba(255, 255, 255, 0.18);
+    }
+    .scriptura-help-footer a {
+      color: #9fd0ff;
+      text-decoration: none;
+    }
+    .scriptura-help-footer a:hover,
+    .scriptura-help-footer a:focus {
+      text-decoration: underline;
+    }
     /* Collapse chevron on a section heading. */
     .scriptura-chevron {
       display: inline-block;
@@ -190,6 +259,12 @@
   popup.appendChild(popupBody);
   document.body.appendChild(popup);
 
+  // Keep the popup open while the mouse is over it, so the user can move onto
+  // the "Full guide" link without it closing. Leaving the popup schedules a
+  // close, the same as leaving an icon.
+  popup.addEventListener('mouseenter', clearTimers);
+  popup.addEventListener('mouseleave', scheduleHide);
+
   let activeIcon = null;
   let showTimer = null;
   let hideTimer = null;
@@ -220,6 +295,7 @@
 
     if (payload.plain) {
       popupBody.appendChild(document.createTextNode(payload.plain));
+      appendGuideFooter();
       return;
     }
 
@@ -247,6 +323,21 @@
       });
       popupBody.appendChild(list);
     }
+
+    appendGuideFooter();
+  }
+
+  // Adds the "Full guide" link to the bottom of the current popup body.
+  function appendGuideFooter() {
+    const footer = document.createElement('div');
+    footer.className = 'scriptura-help-footer';
+    const link = document.createElement('a');
+    link.href = GUIDE_URL;
+    link.target = '_blank';
+    link.rel = 'noopener';
+    link.textContent = 'Full guide \u2197';
+    footer.appendChild(link);
+    popupBody.appendChild(footer);
   }
 
   function showPopup(icon) {
@@ -298,9 +389,17 @@
   }
 
   // Close a click-opened popup when the page scrolls or the user clicks away.
-  window.addEventListener('scroll', hidePopup, true);
+  // Scrolling inside the popup itself (a long option list) should not close it.
+  window.addEventListener('scroll', function (e) {
+    if (e.target && popup.contains(e.target)) return;
+    hidePopup();
+  }, true);
   document.addEventListener('click', function (e) {
-    if (activeIcon && !e.target.classList.contains('scriptura-help-icon')) {
+    if (
+      activeIcon &&
+      !e.target.classList.contains('scriptura-help-icon') &&
+      !popup.contains(e.target)
+    ) {
       hidePopup();
     }
   });
