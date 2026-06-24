@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Scriptura Bloomerang Tools
 // @namespace    https://scriptura.org/
-// @version      1.4.0
+// @version      1.4.1
 // @description  Adds help icon popups to Bloomerang field labels
 // @match        https://*.bloomerang.co/*
 // @run-at       document-idle
@@ -560,8 +560,9 @@
     for (var i = 0; i < nodes.length; i++) {
       var el = nodes[i];
       var raw = el.textContent;
-      if (!raw || raw.length > 60) continue;        // skip big containers fast
-      if (norm(raw) === target && el.childElementCount < bestKids) {
+      if (!raw || raw.length > 80) continue;        // skip big containers fast
+      if ((norm(raw) === target || norm(ownText(el)) === target) &&
+          el.childElementCount < bestKids) {
         best = el;
         bestKids = el.childElementCount;
       }
