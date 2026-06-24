@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Scriptura Bloomerang Tools
 // @namespace    https://scriptura.org/
-// @version      1.3.2
+// @version      1.4.0
 // @description  Adds help icon popups to Bloomerang field labels
 // @match        https://*.bloomerang.co/*
 // @run-at       document-idle
@@ -48,9 +48,7 @@
   // listed keeps its place after the listed ones.
   const PROFILE_COLUMN_ORDER = [
     'Donor Relationship',
-    'Biographical Details',
-    'Basic Info',
-    'Personal Information'
+    'Biographical Details'
   ];
   const EDIT_SECTION_ORDER = [
     'Edit Profile',
@@ -58,8 +56,19 @@
     'Biographical Details',
     'Communication Preferences'
   ];
-  // Profile sections that start collapsed. Click the heading to expand.
-  const COLLAPSED_SECTIONS = ['Basic Info', 'Personal Information'];
+  // On the profile, every titled section starts collapsed EXCEPT these. Click
+  // a collapsed heading to expand it. Any section added later collapses by
+  // default, so this list is the only thing to maintain.
+  const KEEP_EXPANDED = [
+    'Donor Relationship',
+    'Biographical Details',
+    'Addresses',
+    'Emails',
+    'Phone Numbers',
+    'Communication Preferences',
+    'Groups',
+    'Giving Level'
+  ];
 
   // =========================================================================
   // STYLES
@@ -500,7 +509,7 @@
   // if sections are not moving or collapsing as expected.
   window.scripturaLayoutCheck = function () {
     console.log('[Scriptura] page mode:', getPageMode());
-    var names = PROFILE_COLUMN_ORDER.concat(EDIT_SECTION_ORDER).concat(COLLAPSED_SECTIONS);
+    var names = PROFILE_COLUMN_ORDER.concat(EDIT_SECTION_ORDER).concat(KEEP_EXPANDED);
     var seen = {};
     names.forEach(function (n) {
       if (seen[n]) return;
@@ -612,42 +621,74 @@
   // Work out which elements make up a section's collapsible body. Prefer the
   // heading's following siblings; if the heading stands alone in a header
   // block, use that block's following siblings instead.
-  function initCollapse(column, name) {
-    const heading = findHeadingByText(name);
-    if (!heading) return;
-    const card = directChildContaining(column, heading);
-    if (!card || card.dataset.scripturaCollapsible) return;
+  // Returns only an element's own text, ignoring text inside child elements
+  // (so a heading with an embedded button still yields just the title).
+  function ownText(el) {
+    var t = '';
+    el.childNodes.forEach(function (n) { if (n.nodeType === 3) t += n.textContent; });
+    return t.trim();
+  }
+
+  // Make a card collapsible, starting collapsed. headerEl stays visible and is
+  // the click target; everything in bodyEls hides when collapsed.
+  function setupCollapse(card, headerEl, bodyEls) {
+    if (card.dataset.scripturaCollapsible) return;
     card.dataset.scripturaCollapsible = '1';
 
-    // The header block is the card's direct child that holds the heading.
-    // Everything else directly inside the card is the body that collapses.
-    // Bounding to the card means we never hide a neighboring section.
-    const headerBlock = directChildContaining(card, heading) || heading;
-    const bodyEls = Array.prototype.slice.call(card.children)
-      .filter(function (c) { return c !== headerBlock; });
-
-    headerBlock.style.cursor = 'pointer';
-    headerBlock.setAttribute('role', 'button');
-    headerBlock.setAttribute('tabindex', '0');
+    headerEl.style.cursor = 'pointer';
+    headerEl.setAttribute('role', 'button');
+    headerEl.setAttribute('tabindex', '0');
 
     const chevron = document.createElement('span');
     chevron.className = 'scriptura-chevron';
-    heading.appendChild(chevron);
+    headerEl.appendChild(chevron);
 
     var collapsed = true;
     function render() {
       bodyEls.forEach(function (c) { c.style.display = collapsed ? 'none' : ''; });
       card.classList.toggle('scriptura-card-expanded', !collapsed);
-      headerBlock.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+      headerEl.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
     }
     function toggle() { collapsed = !collapsed; render(); }
 
-    headerBlock.addEventListener('click', toggle);
-    headerBlock.addEventListener('keydown', function (e) {
+    headerEl.addEventListener('click', toggle);
+    headerEl.addEventListener('keydown', function (e) {
       if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); }
     });
 
     render();
+  }
+
+  // Collapse every titled profile section whose title is not in the keep list.
+  function collapseAllExcept(keepList) {
+    const keep = keepList.map(norm);
+    document.querySelectorAll('.two-column section').forEach(function (sec) {
+      if (sec.dataset.scripturaCollapsible) return;
+      const header = Array.prototype.slice.call(sec.children).find(function (c) {
+        return c.tagName === 'HEADER';
+      });
+      if (!header) return;
+      const title = norm(ownText(header));
+      if (!title || keep.indexOf(title) !== -1) return;
+      const bodyEls = Array.prototype.slice.call(sec.children).filter(function (c) {
+        return c !== header;
+      });
+      setupCollapse(sec, header, bodyEls);
+    });
+  }
+
+  // The Giving Statements card has a different structure (its title is a <p>,
+  // not a <header>), so it is collapsed on its own.
+  function collapseTaxSummary() {
+    const card = document.getElementById('tax-summary-card');
+    if (!card || card.dataset.scripturaCollapsible) return;
+    const content = card.querySelector('.card-content') || card;
+    const title = content.querySelector('p');
+    if (!title) return;
+    const bodyEls = Array.prototype.slice.call(content.children).filter(function (c) {
+      return c !== title;
+    });
+    setupCollapse(card, title, bodyEls);
   }
 
   function applyLayout() {
@@ -655,10 +696,9 @@
       reorderSections(EDIT_SECTION_ORDER);
       return;
     }
-    const column = findColumnFor(PROFILE_COLUMN_ORDER);
-    if (!column) return;
-    reorderInColumn(column, PROFILE_COLUMN_ORDER);
-    COLLAPSED_SECTIONS.forEach(function (name) { initCollapse(column, name); });
+    reorderSections(PROFILE_COLUMN_ORDER);
+    collapseAllExcept(KEEP_EXPANDED);
+    collapseTaxSummary();
   }
 
   // =========================================================================
@@ -693,4 +733,3 @@
       start(FALLBACK_TOOLTIPS);
     });
 })();
-
