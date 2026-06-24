@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Scriptura Bloomerang Tools
 // @namespace    https://scriptura.org/
-// @version      1.3.1
+// @version      1.3.2
 // @description  Adds help icon popups to Bloomerang field labels
 // @match        https://*.bloomerang.co/*
 // @run-at       document-idle
@@ -545,7 +545,7 @@
   // the heading itself, not a wrapper that also contains the section body.
   function findHeadingByText(text) {
     const target = norm(text);
-    const nodes = document.querySelectorAll('h1,h2,h3,h4,h5,h6,div,span,p,a,strong,b');
+    const nodes = document.querySelectorAll('header,h1,h2,h3,h4,h5,h6,div,span,p,a,strong,b');
     var best = null;
     var bestKids = Infinity;
     for (var i = 0; i < nodes.length; i++) {
@@ -693,3 +693,4 @@
       start(FALLBACK_TOOLTIPS);
     });
 })();
+
