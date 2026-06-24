@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Scriptura Bloomerang Tools
 // @namespace    https://scriptura.org/
-// @version      1.5.0
+// @version      1.5.1
 // @description  Adds help icon popups to Bloomerang field labels, with field options and a link to the full Donor Relationship Guide
 // @match        https://*.bloomerang.co/*
 // @run-at       document-idle
@@ -220,11 +220,12 @@
       border-top: 1px solid rgba(255, 255, 255, 0.18);
     }
     .scriptura-help-footer a {
-      color: #9fd0ff;
+      color: #9fd0ff !important;
       text-decoration: none;
     }
     .scriptura-help-footer a:hover,
     .scriptura-help-footer a:focus {
+      color: #cce6ff !important;   /* lighten on hover; stays readable on dark slate */
       text-decoration: underline;
     }
     /* Collapse chevron on a section heading. */
