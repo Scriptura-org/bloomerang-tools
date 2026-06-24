@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Scriptura Bloomerang Tools
 // @namespace    https://scriptura.org/
-// @version      1.4.1
+// @version      1.4.2
 // @description  Adds help icon popups to Bloomerang field labels
 // @match        https://*.bloomerang.co/*
 // @run-at       document-idle
@@ -62,6 +62,7 @@
   const KEEP_EXPANDED = [
     'Donor Relationship',
     'Biographical Details',
+    'Basic Info',
     'Addresses',
     'Emails',
     'Phone Numbers',
@@ -404,9 +405,14 @@
     return map;
   }
 
-  // 'edit' on the field edit screen, 'view' on the read-only profile.
+  // 'edit'    = the field edit screen   (path ends with /Profile/Edit)
+  // 'profile' = the read-only profile   (path ends with /Profile)
+  // 'other'   = any other tab           (Summary, Timeline, Relationships, ...)
   function getPageMode() {
-    return /edit/i.test(location.pathname) ? 'edit' : 'view';
+    var path = location.pathname.replace(/\/+$/, '').toLowerCase();
+    if (/\/profile\/edit$/.test(path)) return 'edit';
+    if (/\/profile$/.test(path)) return 'profile';
+    return 'other';
   }
 
   // On the profile, find the value(s) currently set for a field by reading the
@@ -693,13 +699,18 @@
   }
 
   function applyLayout() {
-    if (getPageMode() === 'edit') {
+    const mode = getPageMode();
+    if (mode === 'edit') {
       reorderSections(EDIT_SECTION_ORDER);
       return;
     }
-    reorderSections(PROFILE_COLUMN_ORDER);
-    collapseAllExcept(KEEP_EXPANDED);
-    collapseTaxSummary();
+    if (mode === 'profile') {
+      reorderSections(PROFILE_COLUMN_ORDER);
+      collapseAllExcept(KEEP_EXPANDED);
+      collapseTaxSummary();
+      return;
+    }
+    // Other tabs (Summary, Timeline, Relationships): leave the layout untouched.
   }
 
   // =========================================================================
