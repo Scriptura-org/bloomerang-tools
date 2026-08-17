@@ -1,5 +1,5 @@
 {
-  "_schema": "Each field key matches the on-screen label. Freeform fields use just \"idea\". Select fields use \"idea\" plus an \"options\" list, where each option key must exactly match the Bloomerang value label. On the edit screen all options are shown; on the profile only the chosen value(s) are shown. To update options over time, edit the options list for that field. Keys starting with _ are ignored.",
+  "_schema": "Each field key matches the on-screen label. Freeform fields use just \"idea\". Select fields use \"idea\" plus an \"options\" list, where each option key must exactly match the Bloomerang value label. On the edit screen all options are shown; on the profile only the chosen value(s) are shown. Set \"showAllOptions\": true on a field to always show every option regardless of page, used for fields on logging forms (Interaction, Task, Email, Letter) where there is no separate read-only display to detect a value from. To update options over time, edit the options list for that field. Keys starting with _ are ignored.",
 
   "Outreach Approach": {
     "idea": "How staff should contact this person right now. This is a work instruction, not the pipeline stage.",
@@ -59,6 +59,23 @@
       "Pastor": "Serves as a pastor of a church.",
       "Student": "Is currently studying, for example at a school, college, or seminary.",
       "Volunteer / Service": "Helps through hands-on volunteering or service."
+    }
+  },
+
+  "Purpose": {
+    "idea": "The main reason for this task, interaction, email, or letter. For most day-to-day relationship contact, Impact/Cultivation is correct. A few of the other options mark something specific in Bloomerang, not just a label, so choose with care.",
+    "showAllOptions": true,
+    "options": {
+      "Acknowledgement": "Thanking someone for a gift. Choosing this can also mark that gift as acknowledged in Bloomerang, so use it for a real thank-you tied to a specific donation, not general contact.",
+      "Impact/Cultivation": "The everyday choice for relationship-building contact: sharing impact, catching up, or otherwise deepening the relationship. Use this unless another purpose clearly fits better.",
+      "Newsletter": "A general update sent to many people at once, not written for one person.",
+      "Pledge Reminder": "A reminder about a gift someone already promised but has not yet given.",
+      "Receipt": "A formal donation receipt, often needed for the donor's tax records. This is a specific financial document, not a general thank-you.",
+      "Solicitation": "Asking the person for a gift or a specific commitment.",
+      "Special Event": "Anything connected to an event, before, during, or after.",
+      "Volunteer Activity": "Tracking volunteer work or hands-on service.",
+      "Welcome": "Greeting someone new, such as a first-time donor or someone who just started giving on a recurring basis.",
+      "Other": "Use this only when none of the other purposes really fit."
     }
   },
 
