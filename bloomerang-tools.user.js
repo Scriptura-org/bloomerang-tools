@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Scriptura Bloomerang Tools
 // @namespace    https://scriptura.org/
-// @version      1.6.0
+// @version      1.6.1
 // @description  Adds help icon popups to Bloomerang field labels
 // @match        https://*.bloomerang.co/*
 // @run-at       document-idle
@@ -104,6 +104,8 @@
     .scriptura-help-popup {
       position: absolute;
       max-width: 320px;
+      max-height: 80vh;
+      overflow-y: auto;
       padding: 10px 12px;
       background: #3c4858;     /* dark slate, close to Bloomerang's heading color */
       color: #fff;
@@ -270,16 +272,27 @@
     const pr = popup.getBoundingClientRect();
     const iconCenterX = r.left + window.scrollX + (r.width / 2);
 
-    // Default to showing below the icon, with the popup roughly centered on it.
-    let below = true;
-    let top = r.bottom + window.scrollY + 9;
+    // Pick whichever side actually has more room, rather than defaulting to
+    // below and only flipping up when below doesn't fit. A field near the
+    // top of the page has very little room above it, and a long popup (many
+    // options) flipped up there would run off the top of the document with
+    // no way to scroll to the missing part.
+    const spaceBelow = window.innerHeight - r.bottom;
+    const spaceAbove = r.top;
+    const below = spaceBelow >= spaceAbove;
+
+    let top = below
+      ? r.bottom + window.scrollY + 9
+      : r.top + window.scrollY - pr.height - 9;
     let left = iconCenterX - (pr.width / 2);
 
-    // Flip above the icon if there is not enough room below.
-    if (r.bottom + pr.height + 18 > window.innerHeight) {
-      below = false;
-      top = r.top + window.scrollY - pr.height - 9;
-    }
+    // Hard-clamp inside the viewport, even if that means the popup sits a
+    // little further from the icon than usual. A popup that is readable but
+    // not perfectly adjacent beats one that is perfectly placed but has its
+    // top half scrolled off-screen with no way to reach it.
+    const minTop = window.scrollY + 8;
+    const maxTop = window.scrollY + window.innerHeight - pr.height - 8;
+    top = maxTop >= minTop ? Math.min(Math.max(top, minTop), maxTop) : minTop;
 
     // Keep the popup inside the window horizontally.
     const maxLeft = window.scrollX + window.innerWidth - pr.width - 8;
