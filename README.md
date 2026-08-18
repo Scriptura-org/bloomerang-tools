@@ -5,7 +5,7 @@ This is a small browser add-on for Bloomerang constituent pages. It does two thi
 1. Places a blue "?" icon next to certain field labels. Hovering or tapping the icon shows a short, plain-language explanation of the field and, where relevant, of the value already set on that record.
 2. On the read-only profile page, reorders a few sections to the top and collapses the rest to just their heading, so the page is shorter to scan. On the edit page, nothing collapses; sections are only reordered.
 
-You install it once. After that, the actual behavior updates itself automatically, on every browser including Safari, with nothing to reinstall. This works differently from a typical userscript: what you install is a tiny loader that fetches the real logic fresh from GitHub on every page load, the same way it already fetches the help text. Only the loader itself, which should rarely need to change, requires a fresh install when it does. This is a newer design (built to fix a real Safari update bug found in practice) so if anything looks off after installing, check "If the icons do not appear."
+You install it once. After that, the actual behavior updates itself automatically, on every browser including Safari, with nothing to reinstall. What you install is a tiny loader that fetches the real logic fresh from GitHub on every page load, the same way it already fetches the help text. Only the loader itself, which should rarely need to change, requires a fresh install when it does.
 
 ## Install
 
@@ -45,6 +45,8 @@ Safari does not run Tampermonkey for free. The free option is an app called **Us
 **Section layout, Profile page only.** Donor Relationship, Biographical Details, and Basic Info stay open at the top. Addresses, Emails, Phone Numbers, Communication Preferences, Groups, and Giving Level also stay open, in their normal position. Every other section, including Giving Statements, starts collapsed. Click a collapsed heading to open it; click it again to close it. This does not touch the Summary, Timeline, or Relationships tabs, only the Profile page itself.
 
 **Section layout, Edit page only.** Edit Profile, Donor Relationship, Biographical Details, and Communication Preferences move to the top, in that order. Nothing collapses on the edit page.
+
+**Yes/No toggle buttons, such as "Initiated by Constituent?"** Bloomerang's own toggle button shows a checkmark even when unchecked, just tinted gray, which reads to a lot of people as "checked, but faded" rather than "not selected." Unchecked now shows a plain empty box instead; checked still shows Bloomerang's own green checkmark, untouched.
 
 ## If the icons do not appear, or a section will not expand
 
