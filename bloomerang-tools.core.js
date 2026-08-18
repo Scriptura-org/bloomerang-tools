@@ -16,7 +16,7 @@
 
   // Bumped on real changes to this file. Not read by any userscript manager;
   // purely so a quick console.log confirms which copy of the logic loaded.
-  const CORE_VERSION = '2.0.0';
+  const CORE_VERSION = '2.1.0';
   console.log('[Scriptura] Core logic ' + CORE_VERSION + ' loaded (fetched fresh, no reinstall needed).');
 
   // =========================================================================
@@ -181,6 +181,16 @@
     }
     .scriptura-card-expanded .scriptura-chevron {
       transform: rotate(90deg);
+    }
+    /* Bloomerang's own Yes/No toggle button (used for fields like "Initiated
+       by Constituent?") shows its checkmark icon even when unchecked, just
+       tinted gray instead of green. That reads as "checked, but faded" to a
+       lot of people rather than "not selected," which is exactly backwards.
+       Hide the checkmark until the toggle is actually on; Bloomerang's own
+       styling already turns it green at that point, untouched here. */
+    .field.boolean .btn:not(.active) .fa-check,
+    .field.labeled-checkbox .btn:not(.active) .fa-check {
+      visibility: hidden;
     }
   `;
   document.head.appendChild(style);
