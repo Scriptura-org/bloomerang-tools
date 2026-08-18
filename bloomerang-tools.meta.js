@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Scriptura Bloomerang Tools
 // @namespace    https://scriptura.org/
-// @version      1.6.1
-// @description  Adds help icon popups to Bloomerang field labels
+// @version      2.0.0
+// @description  Loads the current Scriptura Bloomerang Tools logic fresh on every page. This file itself should rarely need to change or be reinstalled; see bloomerang-tools.core.js for the actual behavior.
 // @match        https://*.bloomerang.co/*
 // @run-at       document-idle
 // @grant        none

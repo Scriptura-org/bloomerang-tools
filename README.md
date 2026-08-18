@@ -5,7 +5,7 @@ This is a small browser add-on for Bloomerang constituent pages. It does two thi
 1. Places a blue "?" icon next to certain field labels. Hovering or tapping the icon shows a short, plain-language explanation of the field and, where relevant, of the value already set on that record.
 2. On the read-only profile page, reorders a few sections to the top and collapses the rest to just their heading, so the page is shorter to scan. On the edit page, nothing collapses; sections are only reordered.
 
-You install it once. After that it stays current on its own in Firefox, Edge, and Chrome. Safari's userscript manager checks for updates too, but has a known bug in its own update process, so treat "revisit the install link" as the reliable way to update there. See "If the icons do not appear."
+You install it once. After that, the actual behavior updates itself automatically, on every browser including Safari, with nothing to reinstall. This works differently from a typical userscript: what you install is a tiny loader that fetches the real logic fresh from GitHub on every page load, the same way it already fetches the help text. Only the loader itself, which should rarely need to change, requires a fresh install when it does. This is a newer design (built to fix a real Safari update bug found in practice) so if anything looks off after installing, check "If the icons do not appear."
 
 ## Install
 
@@ -51,14 +51,14 @@ Safari does not run Tampermonkey for free. The free option is an app called **Us
 - Make sure the userscript manager is turned on and allowed to run on `crm.bloomerang.co`.
 - On Chrome specifically, check that **Allow User Scripts** is turned on for Tampermonkey (see step 2 above). This is the most common reason Chrome looks fine but nothing happens.
 - Reload the constituent page.
-- If a collapsed section will not open when clicked, or you see the old layout after we announce an update, on Safari try the install link again to force a fresh copy, since Safari's own update check is not fully reliable. On Firefox, Edge, and Chrome this should not be necessary, since Tampermonkey checks for updates on its own.
+- To check whether the tool is actually loading, open the browser's developer console (right-click the page, Inspect, then the Console tab) and reload. Look for a line starting with `[Scriptura] Core logic`. If you see that, the tool loaded correctly and any remaining issue is elsewhere. If you see `[Scriptura] Could not load Bloomerang Tools from GitHub` instead, something blocked the fetch, most often a network issue or, in principle, a stricter Content Security Policy than expected; send Doug a screenshot of that console error.
 - If you still see nothing, contact Doug.
 
 ---
 
 ## For administrators
 
-The help text lives in `config/tooltips.json`. Editing that file is the normal, everyday task. The script itself rarely needs to change.
+The help text lives in `config/tooltips.json`. The actual behavior lives in `bloomerang-tools.core.js`. Both are fetched fresh by staff browsers on every page load, so changes to either take effect immediately, everywhere, with nothing for staff to reinstall. Only `bloomerang-tools.user.js`, the tiny loader that staff actually install, should need a reinstall when it changes, and that should be rare.
 
 ### Editing the help text
 
@@ -110,17 +110,34 @@ git commit -am "Update help text"
 git push
 ```
 
-### Changing the script
+### Changing the logic
 
-If you change `bloomerang-tools.user.js` itself, meaning any code change, not just help text, do three things before you push:
+Anything that isn't help text, such as the popup's positioning, or the section reorder and collapse rules, lives in `bloomerang-tools.core.js`. Editing this file works exactly like editing `tooltips.json`: commit, push, and staff have it on their next page load. No version number, no reinstall, on any browser.
 
-1. Increase the `@version` number near the top of the file.
-2. Copy that same metadata block (the lines between `// ==UserScript==` and `// ==/UserScript==`, version included) into `bloomerang-tools.meta.js`, replacing what is there. The two files must always agree.
-3. Run `node --check bloomerang-tools.user.js` to confirm there are no syntax errors.
+```bash
+cd /opt/bloomerang-tools
+vi bloomerang-tools.core.js
+node --check bloomerang-tools.core.js
+git commit -am "Describe the change"
+git push
+```
 
-Tampermonkey (Firefox, Edge, Chrome) checks the version and updates everyone automatically. Safari's Userscripts app checks `bloomerang-tools.meta.js` for the same purpose, but its update process has a known bug upstream, so it is worth telling staff directly when a script change goes out, and pointing Safari users back to the install link if their copy looks stale.
+The section reorder and collapse lists (`PROFILE_COLUMN_ORDER`, `EDIT_SECTION_ORDER`, `KEEP_EXPANDED`) are near the top of this file, each with a short comment. Adding a section name to `KEEP_EXPANDED` keeps it open on the profile; anything not in that list collapses by default, including sections added to Bloomerang later. `CORE_VERSION`, a few lines further down, is worth bumping on any real change; it isn't read by any userscript manager, it only prints to the browser console so you can confirm which copy of the logic a staff member is actually running when troubleshooting.
 
-The section reorder and collapse lists (`PROFILE_COLUMN_ORDER`, `EDIT_SECTION_ORDER`, `KEEP_EXPANDED`) are near the top of the script, each with a short comment. Adding a section name to `KEEP_EXPANDED` keeps it open on the profile; anything not in that list collapses by default, including sections added to Bloomerang later.
+### Changing the loader
+
+`bloomerang-tools.user.js` is the tiny script staff actually install. Its only job is to fetch `bloomerang-tools.core.js` and run it, so it should very rarely need to change. If it ever does, treat it like the old all-in-one script: bump `@version`, copy the same header into `bloomerang-tools.meta.js`, and check syntax, before pushing.
+
+```bash
+cd /opt/bloomerang-tools
+vi bloomerang-tools.user.js
+node --check bloomerang-tools.user.js
+# copy the metadata block (between ==UserScript== and ==/UserScript==) into bloomerang-tools.meta.js
+git commit -am "Describe the loader change"
+git push
+```
+
+Tampermonkey (Firefox, Edge, Chrome) checks the loader's version and updates it automatically. Safari's Userscripts app has a confirmed bug where it can update its displayed version number without actually replacing the script's code, so when the loader itself changes, tell Safari users to delete it in the Userscripts app and reinstall fresh from the link, rather than trusting the update indicator. Because the loader is now this small and should change this rarely, that Safari dance should become a rare event rather than something staff hit with every update, which was the whole reason this loader design exists.
 
 ### Why this repo is public
 
@@ -129,8 +146,9 @@ Staff browsers fetch these files anonymously, so the repo has to be public for t
 ### Layout
 
 ```
-bloomerang-tools.user.js   The script staff install. Rarely changes.
-bloomerang-tools.meta.js   Metadata-only copy of the header above, for Safari's update check.
-config/tooltips.json       The help text. Edit this often.
+bloomerang-tools.user.js   The tiny loader staff install. Should rarely change.
+bloomerang-tools.core.js   The actual behavior. Edit this often; no reinstall needed.
+bloomerang-tools.meta.js   Metadata-only copy of the loader's header, for Safari's update check.
+config/tooltips.json       The help text. Edit this often; no reinstall needed.
 README.md                  This file.
 ```
