@@ -16,7 +16,7 @@
 
   // Bumped on real changes to this file. Not read by any userscript manager;
   // purely so a quick console.log confirms which copy of the logic loaded.
-  const CORE_VERSION = '2.1.0';
+  const CORE_VERSION = '2.2.0';
   console.log('[Scriptura] Core logic ' + CORE_VERSION + ' loaded (fetched fresh, no reinstall needed).');
 
   // =========================================================================
@@ -27,6 +27,10 @@
   // the built-in fallback list below is used instead.
   const RAW_CONFIG_URL =
     'https://raw.githubusercontent.com/Scriptura-org/bloomerang-tools/main/config/tooltips.json';
+
+  // The full written guide, linked from the bottom of every help popup.
+  const GUIDE_URL =
+    'https://docs.google.com/document/d/1NObt4ISChvwL8qRL4dNH-1gjypNu7Kq18N53Y4v1y1A/edit';
 
   // Built-in help text used when the remote file cannot be loaded.
   // The keys must match the field label text exactly as it appears on screen
@@ -166,6 +170,17 @@
     .scriptura-help-desc {
       color: #c7cdd4;        /* muted, so the bold option names scan easily */
     }
+    .scriptura-help-guide {
+      display: block;
+      margin-top: 9px;
+      padding-top: 9px;
+      border-top: 1px solid rgba(255, 255, 255, 0.18);
+      color: #7cc4dc;        /* lighter than the icon blue, for contrast on dark */
+      text-decoration: none;
+    }
+    .scriptura-help-guide:hover {
+      text-decoration: underline;
+    }
     /* Collapse chevron on a section heading. */
     .scriptura-chevron {
       display: inline-block;
@@ -232,39 +247,47 @@
 
   // Builds the popup contents from a payload object. A payload is either
   // { plain: "..." } for simple text, or { idea: "...", options: [{name, desc}] }
-  // for the structured field-and-options form.
+  // for the structured field-and-options form. Either way, a link to the
+  // full written guide is appended at the end.
   function renderPayload(payload) {
     while (popupBody.firstChild) popupBody.removeChild(popupBody.firstChild);
 
     if (payload.plain) {
       popupBody.appendChild(document.createTextNode(payload.plain));
-      return;
+    } else {
+      if (payload.idea) {
+        const idea = document.createElement('div');
+        idea.className = 'scriptura-help-idea';
+        idea.textContent = payload.idea;
+        popupBody.appendChild(idea);
+      }
+
+      if (payload.options && payload.options.length) {
+        const list = document.createElement('div');
+        list.className = 'scriptura-help-options';
+        payload.options.forEach(function (opt) {
+          const row = document.createElement('div');
+          row.className = 'scriptura-help-opt';
+          const name = document.createElement('b');
+          name.textContent = opt.name;
+          const desc = document.createElement('span');
+          desc.className = 'scriptura-help-desc';
+          desc.textContent = ': ' + opt.desc;
+          row.appendChild(name);
+          row.appendChild(desc);
+          list.appendChild(row);
+        });
+        popupBody.appendChild(list);
+      }
     }
 
-    if (payload.idea) {
-      const idea = document.createElement('div');
-      idea.className = 'scriptura-help-idea';
-      idea.textContent = payload.idea;
-      popupBody.appendChild(idea);
-    }
-
-    if (payload.options && payload.options.length) {
-      const list = document.createElement('div');
-      list.className = 'scriptura-help-options';
-      payload.options.forEach(function (opt) {
-        const row = document.createElement('div');
-        row.className = 'scriptura-help-opt';
-        const name = document.createElement('b');
-        name.textContent = opt.name;
-        const desc = document.createElement('span');
-        desc.className = 'scriptura-help-desc';
-        desc.textContent = ': ' + opt.desc;
-        row.appendChild(name);
-        row.appendChild(desc);
-        list.appendChild(row);
-      });
-      popupBody.appendChild(list);
-    }
+    const guide = document.createElement('a');
+    guide.className = 'scriptura-help-guide';
+    guide.href = GUIDE_URL;
+    guide.target = '_blank';
+    guide.rel = 'noopener';
+    guide.textContent = 'Full guide \u2197';
+    popupBody.appendChild(guide);
   }
 
   function showPopup(icon) {
